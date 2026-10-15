@@ -1,0 +1,16 @@
+# Build-Ausgaben
+server/target/
+web/node_modules/
+web/.angular/
+
+# IDE
+.idea/
+
+# Laufzeit-Dateien auf dem Ziel-PC (nicht ins Repo)
+deploy/cloudflared.exe
+deploy/remote-fun.jar
+deploy/*.log
+deploy/cf.out
+deploy/cf.err
+deploy/link.txt
+deploy/version.txt

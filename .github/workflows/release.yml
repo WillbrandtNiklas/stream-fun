@@ -1,0 +1,44 @@
+name: build-release
+
+# Baut bei jedem Push auf main das Frontend + den Server und veroeffentlicht
+# die fertige remote-fun.jar als neuestes Release. Der Ziel-PC holt sie automatisch.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Frontend bauen
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Server bauen
+        working-directory: server
+        run: mvn -q -B -DskipTests package
+
+      - name: Release veroeffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: build-${{ github.run_number }}
+          files: server/target/remote-fun.jar
