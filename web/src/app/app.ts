@@ -5,32 +5,43 @@ interface Video { id: string; title: string; channel: string; length: string; th
 @Component({
   selector: 'app-root',
   template: `
-    <h1>🎉 Stream-Fernbedienung</h1>
-    <p class="s">{{ status() }}</p>
-    <section>
+    <header class="hd">
+      <h1>Stream-Fernbedienung</h1>
+      <span class="pill" [class.live]="talking() || listening()">{{ status() }}</span>
+    </header>
+
+    <section class="card talk">
       <button class="big" [class.on]="talking()" (contextmenu)="$event.preventDefault()"
         (pointerdown)="startTalk()" (pointerup)="stopTalk()" (pointerleave)="stopTalk()" (pointercancel)="stopTalk()">
-        🎤 {{ talking() ? 'Du sendest…' : 'Halten zum Sprechen' }}
+        <span class="ico">🎤</span>
+        <span>{{ talking() ? 'Du sendest…' : 'Halten zum Sprechen' }}</span>
       </button>
     </section>
-    <section>
-      <button [class.on]="listening()" (click)="toggleListen()">
-        {{ listening() ? '🔇 Zuhören beenden' : '👂 Zuhören (Server-Mikro)' }}
-      </button>
-      <button (click)="screenshot()">📸 Screenshot</button>
-      <button (click)="post('/api/close-tab', 'Tab geschlossen')">❌ Aktiven Tab schließen</button>
+
+    <section class="card">
+      <span class="label">Steuerung</span>
+      <div class="row">
+        <button [class.on]="listening()" (click)="toggleListen()">
+          {{ listening() ? '🔇 Zuhören beenden' : '👂 Zuhören' }}
+        </button>
+        <button (click)="screenshot()">📸 Screenshot</button>
+        <button (click)="post('/api/close-tab', 'Tab geschlossen')">❌ Tab schließen</button>
+      </div>
+      <div class="row">
+        <button (click)="post('/api/mouse/freeze?seconds=' + secs, 'Maus eingefroren')">🧊 Maus einfrieren</button>
+        <span class="field"><input type="number" min="0" [value]="secs" (input)="secs = +$any($event.target).value"> Sek.</span>
+        <button (click)="post('/api/mouse/unfreeze', 'Maus frei')">🔥 Freigeben</button>
+      </div>
     </section>
-    <section>
-      <button (click)="post('/api/mouse/freeze?seconds=' + secs, 'Maus eingefroren')">🧊 Maus einfrieren</button>
-      <input type="number" min="0" [value]="secs" (input)="secs = +$any($event.target).value"> s (0 = bis Freigabe)
-      <button (click)="post('/api/mouse/unfreeze', 'Maus frei')">🔥 Freigeben</button>
-    </section>
-    <h3>YouTube</h3>
-    <section>
-      <input class="search" type="search" placeholder="Video suchen…" [value]="query"
-        (input)="query = $any($event.target).value" (keydown.enter)="search()">
-      <button (click)="search()">🔎 Suchen</button>
-      <button (click)="post('/api/youtube/stop', 'Wiedergabe gestoppt')">⏹ Stop</button>
+
+    <section class="card">
+      <span class="label">YouTube</span>
+      <div class="row">
+        <input class="search" type="search" placeholder="Video suchen…" [value]="query"
+          (input)="query = $any($event.target).value" (keydown.enter)="search()">
+        <button class="primary" (click)="search()">🔎 Suchen</button>
+        <button (click)="post('/api/youtube/stop', 'Wiedergabe gestoppt')">⏹ Stop</button>
+      </div>
     </section>
     @if (selected(); as v) {
       <section class="chosen">

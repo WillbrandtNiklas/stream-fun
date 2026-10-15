@@ -37,19 +37,20 @@ public class ControlController {
     @Value("${server.port:8080}")
     private int port;
 
-    // Wiedergabe-Status. generation steigt bei jedem Start/Stop, damit alte Watchdogs erkennen,
-    // dass sie zu einer abgelaufenen Wiedergabe gehören und nichts neu starten.
+    // Alle offenen Player-Fenster der aktuellen Wiedergabe (ein Prozess pro Monitor bzw. eines für nur Ton).
     private final List<Process> players = new CopyOnWriteArrayList<>();
+    // eigener Ort für die (jeweils frischen) Chrome-Profile der Player-Fenster
+    private final Path profileBase = Path.of(System.getProperty("java.io.tmpdir"), "stream-fun-profiles");
     private volatile Process audioProc; // das versteckte Nur-Ton-Fenster
-    private volatile int generation;
-    private volatile boolean active;
     private volatile String curId;
     private volatile boolean curVideo;
-    private volatile long lastLaunch;
-    private volatile int rapidFails;
 
     public ControlController() throws AWTException {
         this.robot = new Robot();
+        // beim Beenden (z. B. Update) offene Player-Fenster mit schließen
+        Runtime.getRuntime().addShutdownHook(new Thread(this::stopPlayerInternal));
+        // beim Start alte, evtl. beschädigte Chrome-Profile vom letzten Lauf entfernen (verhindert "Profilfehler")
+        deleteDir(profileBase);
     }
 
     /** Alle Monitore als ein PNG. */
@@ -165,7 +166,7 @@ public class ControlController {
     /**
      * Spielt das Video auf dem Server-PC ab.
      * video=true: Vollbild auf allen Monitoren, ohne Bedienelemente; Klicks/Tasten in der Seite werden
-     *             abgefangen, bei Pause wird sofort weitergespielt, und ein geschlossenes Fenster startet neu.
+     *             abgefangen und bei Pause wird sofort weitergespielt.
      * video=false: komplett verstecktes Fenster (kein Taskleisten-Eintrag), nur Ton im Hintergrund.
      */
     @PostMapping("/youtube/play")
@@ -175,33 +176,30 @@ public class ControlController {
         stopPlayerInternal();
         curId = id;
         curVideo = video;
-        active = true;
-        rapidFails = 0;
         launchSet();
     }
 
     /** Öffnet die Fenster für die aktuelle Wiedergabe (ein Vollbild-Fenster pro Monitor, bzw. eines für nur Ton). */
     private void launchSet() throws Exception {
         String exe = findBrowser();
-        if (exe == null) { active = false; return; }
-        lastLaunch = System.currentTimeMillis();
-        int gen = generation;
+        if (exe == null) return;
         if (curVideo) {
             var genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
             GraphicsDevice primary = genv.getDefaultScreenDevice();
             for (GraphicsDevice d : genv.getScreenDevices()) {
                 Rectangle b = d.getDefaultConfiguration().getBounds();
-                launchWindow(exe, b, true, d != primary, gen); // Ton nur auf dem Hauptmonitor, sonst Echo
+                launchWindow(exe, b, true, d != primary); // Ton nur auf dem Hauptmonitor, sonst Echo
             }
         } else {
             // off-screen, aber sichtbar starten; verstecken erst, wenn die Wiedergabe läuft
             // (Chrome blockt Autoplay in einem versteckten Fenster -> sonst kein Ton)
-            audioProc = launchWindow(exe, new Rectangle(-32000, -32000, 320, 240), false, false, gen);
+            audioProc = launchWindow(exe, new Rectangle(-32000, -32000, 320, 240), false, false);
         }
     }
 
-    private Process launchWindow(String exe, Rectangle b, boolean video, boolean mute, int gen) throws Exception {
-        Path profile = Files.createTempDirectory("yt-player");
+    private Process launchWindow(String exe, Rectangle b, boolean video, boolean mute) throws Exception {
+        Path profile = profileBase.resolve(java.util.UUID.randomUUID().toString());
+        Files.createDirectories(profile); // immer ein frisches, sauberes Profil
         String url = "http://localhost:" + port + "/api/player?id=" + curId
                 + "&video=" + (video ? 1 : 0) + "&mute=" + (mute ? 1 : 0);
         List<String> cmd = new ArrayList<>(List.of(
@@ -222,26 +220,7 @@ public class ControlController {
         if (video) cmd.add("--start-fullscreen");
         Process p = new ProcessBuilder(cmd).start();
         players.add(p);
-        watch(p, gen);
         return p;
-    }
-
-    /** Watchdog: wird ein Fenster vor dem Videoende geschlossen, startet die ganze Wiedergabe neu. */
-    private void watch(Process p, int gen) {
-        p.onExit().thenRun(() -> {
-            synchronized (this) {
-                players.remove(p);
-                if (!active || gen != generation) return; // alte/abgelaufene Wiedergabe -> ignorieren
-                if (System.currentTimeMillis() - lastLaunch < 3000) {
-                    if (++rapidFails >= 6) { active = false; return; } // Startfehler -> keine Endlosschleife
-                } else {
-                    rapidFails = 0;
-                }
-                generation++; // alte Fenster/Watchdogs entwerten
-                killAll();
-                try { launchSet(); } catch (Exception ignored) { active = false; }
-            }
-        });
     }
 
     /** Stoppt die laufende Wiedergabe (schließt alle Fenster). */
@@ -264,9 +243,7 @@ public class ControlController {
     }
 
     private void stopPlayerInternal() {
-        active = false;
         audioProc = null;
-        generation++;
         killAll();
     }
 
@@ -276,6 +253,18 @@ public class ControlController {
             p.destroyForcibly();
         }
         players.clear();
+    }
+
+    /** Löscht einen Ordner rekursiv (best effort), um alte Chrome-Profile aufzuräumen. */
+    private static void deleteDir(Path dir) {
+        try {
+            if (!Files.exists(dir)) return;
+            try (var s = Files.walk(dir)) {
+                s.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                    try { Files.delete(p); } catch (Exception ignored) { }
+                });
+            }
+        } catch (Exception ignored) { }
     }
 
     /** Versteckt (SW_HIDE) alle Fenster des Prozesses, damit nur Ton läuft und nichts in der Taskleiste steht. */
