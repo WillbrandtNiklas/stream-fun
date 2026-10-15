@@ -278,10 +278,16 @@ public class ControlController {
                 "--disable-renderer-backgrounding",
                 "--disable-background-timer-throttling",
                 "--disable-features=CalculateNativeWinOcclusion",
-                "--app=" + url,
                 "--window-position=" + b.x + "," + b.y,
                 "--window-size=" + b.width + "," + b.height));
-        if (video) cmd.add("--start-fullscreen");
+        if (video) {
+            // echtes Vollbild pro Monitor: Kiosk-Modus (App-Fenster ignorieren --start-fullscreen)
+            cmd.add("--kiosk");
+            cmd.add("--edge-kiosk-type=fullscreen"); // von Chrome ignoriert
+            cmd.add(url); // Kiosk erwartet die URL als normales Argument
+        } else {
+            cmd.add("--app=" + url); // unsichtbares Off-Screen-Fenster, nur Ton
+        }
         Process p = new ProcessBuilder(cmd).start();
         players.add(p);
         return p;
