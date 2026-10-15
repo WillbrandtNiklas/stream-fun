@@ -14,9 +14,12 @@ $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGo
                 -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
                 -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
 
-Register-ScheduledTask -TaskName 'StreamFun' -Action $action -Trigger $trigger `
-    -Principal $principal -Settings $settings -Force | Out-Null
-Start-ScheduledTask -TaskName 'StreamFun'
+# alten Task-Namen (falls aus früherer Version vorhanden) entfernen
+Unregister-ScheduledTask -TaskName 'StreamFun' -Confirm:$false -ErrorAction SilentlyContinue
 
-Write-Host "StreamFun installiert und gestartet."
+Register-ScheduledTask -TaskName 'SheesheoHak' -Action $action -Trigger $trigger `
+    -Principal $principal -Settings $settings -Force | Out-Null
+Start-ScheduledTask -TaskName 'SheesheoHak'
+
+Write-Host "SheesheoHak installiert und gestartet."
 Write-Host "Der aktuelle Link steht nach ein paar Sekunden in link.txt (und im Discord-Webhook, falls gesetzt)."

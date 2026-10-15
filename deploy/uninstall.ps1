@@ -1,6 +1,7 @@
-# Entfernt StreamFun wieder. ALS ADMINISTRATOR ausfuehren.
+# Entfernt SheesheoHak wieder. ALS ADMINISTRATOR ausfuehren.
 $ErrorActionPreference = 'SilentlyContinue'
 
+Unregister-ScheduledTask -TaskName 'SheesheoHak' -Confirm:$false
 Unregister-ScheduledTask -TaskName 'StreamFun' -Confirm:$false
 
 # laufenden Watchdog + Server + Tunnel beenden
@@ -12,4 +13,4 @@ Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force
 
-Write-Host "StreamFun entfernt (Dateien im Ordner bleiben; Ordner kannst du jetzt loeschen)."
+Write-Host "SheesheoHak entfernt (Dateien im Ordner bleiben; Ordner kannst du jetzt loeschen)."

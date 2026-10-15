@@ -1,4 +1,4 @@
-# Stream-Fun Watchdog: holt die neueste Version, startet den Server (unsichtbar),
+# SheesheoHak Watchdog: holt die neueste Version, startet den Server (unsichtbar),
 # startet den Cloudflare-Tunnel, meldet den Link und startet alles neu, wenn etwas beendet wird.
 # Laeuft dauerhaft im Hintergrund (ueber run.vbs + geplanten Task beim Login).
 
@@ -60,7 +60,7 @@ function Start-Tunnel {
         Log "Link: $url"
         if ($WebhookUrl) {
             try {
-                $body = @{ content = "Stream-Fun ist online: $url" } | ConvertTo-Json
+                $body = @{ content = "SheesheoHak ist online: $url" } | ConvertTo-Json
                 Invoke-RestMethod $WebhookUrl -Method Post -ContentType 'application/json' -Body $body | Out-Null
             } catch { Log "Webhook-Fehler: $_" }
         }

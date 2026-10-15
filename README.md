@@ -1,4 +1,4 @@
-# Stream-Fernbedienung
+# SheesheoHak
 
 ## Starten (Server-PC, Windows, Java 21 + Maven)
     cd server

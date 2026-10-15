@@ -1,4 +1,4 @@
-# Stream-Fun auf dem Ziel-PC einrichten
+# SheesheoHak auf dem Ziel-PC einrichten
 
 Läuft beim Hochfahren automatisch und unsichtbar im Hintergrund, holt sich immer die
 neueste Version von GitHub, erzeugt einen Cloudflare-Link und startet sich bei Absturz/Beenden neu.

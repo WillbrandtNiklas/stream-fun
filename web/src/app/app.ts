@@ -6,7 +6,7 @@ interface Video { id: string; title: string; channel: string; length: string; th
   selector: 'app-root',
   template: `
     <header class="hd">
-      <h1>Stream-Fernbedienung</h1>
+      <h1>Theo</h1>
       <span class="pill" [class.live]="talking() || listening()">{{ status() }}</span>
     </header>
 
