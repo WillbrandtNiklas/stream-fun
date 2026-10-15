@@ -5,7 +5,7 @@
 $ErrorActionPreference = 'SilentlyContinue'
 
 # ============== KONFIGURATION (anpassen) ==============
-$Repo       = 'DEIN-GITHUB-NUTZER/stream-fun'   # owner/repo deines GitHub-Repos
+$Repo       = 'WillbrandtNiklas/stream-fun'     # owner/repo deines GitHub-Repos
 $WebhookUrl = ''                                # optional: Discord-Webhook-URL, dann bekommst du den Link automatisch
 $Port       = 8080
 # ======================================================
