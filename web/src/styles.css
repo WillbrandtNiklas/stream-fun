@@ -143,6 +143,10 @@ button.vid .t { font-size: .85rem; line-height: 1.25; font-weight: 600; display:
 button.vid .c { font-size: .75rem; color: var(--muted); }
 button.vid.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 
+/* ---------- Live-Bild ---------- */
+.live-wrap { padding: 12px; }
+.live-view { display: block; width: 100%; border-radius: 10px; border: 1px solid var(--line); background: #000; }
+
 /* ---------- Screenshot ---------- */
 img.thumb { max-width: 100%; border-radius: 12px; cursor: zoom-in; border: 1px solid var(--line); box-shadow: var(--shadow); }
 .overlay {

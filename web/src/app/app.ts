@@ -24,8 +24,14 @@ interface Video { id: string; title: string; channel: string; length: string; th
         <button [class.on]="listening()" (click)="toggleListen()">
           {{ listening() ? '🔇 Zuhören beenden' : '👂 Zuhören' }}
         </button>
+        <button [class.on]="live()" (click)="toggleLive()">
+          {{ live() ? '⏹ Live stoppen' : '🎥 Live ansehen' }}
+        </button>
         <button (click)="screenshot()">📸 Screenshot</button>
+      </div>
+      <div class="row">
         <button (click)="post('/api/close-tab', 'Tab geschlossen')">❌ Tab schließen</button>
+        <button (click)="post('/api/close-window', 'Programm geschlossen')">🚪 Programm schließen</button>
       </div>
       <div class="row">
         <button (click)="post('/api/mouse/freeze?seconds=' + secs, 'Maus eingefroren')">🧊 Maus einfrieren</button>
@@ -68,6 +74,12 @@ interface Video { id: string; title: string; channel: string; length: string; th
         </button>
       }
     </section>
+    @if (live()) {
+      <section class="card live-wrap">
+        <span class="label">Live-Bild vom Server</span>
+        <img class="live-view" [src]="liveSrc()" alt="Live-Bild">
+      </section>
+    }
     @if (shot()) { <img [src]="shot()!" alt="Screenshot" class="thumb" (click)="zoom.set(true)"> }
     @if (zoom() && shot()) {
       <div class="overlay" (click)="zoom.set(false)">
@@ -86,6 +98,8 @@ export class App implements OnInit {
   selected = signal<Video | null>(null);
   query = '';
   shot = signal<string | null>(null);
+  live = signal(false);
+  liveSrc = signal('');
   zoom = signal(false);
   status = signal('Bereit');
   version = signal('…');
@@ -135,6 +149,18 @@ export class App implements OnInit {
   async post(url: string, msg: string) {
     try { const r = await fetch(url, { method: 'POST' }); this.status.set(r.ok ? msg : 'Fehler ' + r.status); }
     catch { this.status.set('Server nicht erreichbar'); }
+  }
+
+  toggleLive() {
+    if (this.live()) {
+      this.live.set(false);
+      this.liveSrc.set(''); // stoppt den laufenden Stream
+      this.status.set('Live beendet');
+    } else {
+      this.liveSrc.set('/api/screen-stream?t=' + Date.now());
+      this.live.set(true);
+      this.status.set('Live…');
+    }
   }
 
   async screenshot() {

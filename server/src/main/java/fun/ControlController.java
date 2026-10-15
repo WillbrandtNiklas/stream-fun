@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -19,7 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -77,6 +82,65 @@ public class ControlController {
         robot.keyRelease(KeyEvent.VK_W);
         robot.delay(20);
         robot.keyRelease(KeyEvent.VK_CONTROL);
+    }
+
+    /** Alt+F4: schließt das aktive Fenster/Programm. */
+    @PostMapping("/close-window")
+    public synchronized void closeWindow() {
+        robot.keyPress(KeyEvent.VK_ALT);
+        robot.delay(50);
+        robot.keyPress(KeyEvent.VK_F4);
+        robot.delay(50);
+        robot.keyRelease(KeyEvent.VK_F4);
+        robot.delay(20);
+        robot.keyRelease(KeyEvent.VK_ALT);
+    }
+
+    /** Live-Bild: fortlaufender MJPEG-Stream aller Monitore (einige Bilder pro Sekunde). */
+    @GetMapping("/screen-stream")
+    public void screenStream(HttpServletResponse resp) {
+        resp.setHeader("Cache-Control", "no-cache, no-store");
+        resp.setContentType("multipart/x-mixed-replace; boundary=frame");
+        try {
+            OutputStream out = resp.getOutputStream();
+            ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            param.setCompressionQuality(0.5f);
+            while (true) {
+                Rectangle all = new Rectangle();
+                for (GraphicsDevice d : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
+                    all = all.union(d.getDefaultConfiguration().getBounds());
+                }
+                BufferedImage img = scaleToWidth(robot.createScreenCapture(all), 1280);
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                try (var ios = ImageIO.createImageOutputStream(bos)) {
+                    writer.setOutput(ios);
+                    writer.write(null, new IIOImage(img, null, null), param);
+                }
+                byte[] jpg = bos.toByteArray();
+                out.write(("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " + jpg.length + "\r\n\r\n").getBytes());
+                out.write(jpg);
+                out.write("\r\n".getBytes());
+                out.flush();
+                Thread.sleep(120); // ~8 Bilder/Sekunde
+            }
+        } catch (Exception ignored) {
+            // Client hat getrennt oder Stream-Fehler -> einfach beenden
+        }
+    }
+
+    /** Skaliert ein Bild auf maximale Breite (für JPEG ohne Alpha). */
+    private static BufferedImage scaleToWidth(BufferedImage src, int maxW) {
+        int w = src.getWidth(), h = src.getHeight();
+        int nw = Math.min(w, maxW);
+        int nh = (int) ((long) h * nw / w);
+        BufferedImage dst = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = dst.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(src, 0, 0, nw, nh, null);
+        g.dispose();
+        return dst;
     }
 
     /** Maus festhalten; seconds=0 heißt bis zum Freigeben. */
