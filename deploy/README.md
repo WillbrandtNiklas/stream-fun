@@ -20,7 +20,7 @@ neueste Version von GitHub, erzeugt einen Cloudflare-Link und startet sich bei A
 ## Einmal: Ziel-PC einrichten
 
 1. Ordner anlegen, z. B. `C:\stream-fun`, und den Inhalt des `deploy`-Ordners dort hineinkopieren
-   (`agent.ps1`, `run.vbs`, `install.ps1`, `uninstall.ps1`).
+   (den **gesamten** Inhalt: `agent.ps1`, `run.vbs`, `ensure.ps1`, `ensure.vbs`, `install.ps1`, `uninstall.ps1`).
 
 2. `agent.ps1` öffnen und oben eintragen:
    - `$Repo` = dein `github-nutzer/stream-fun`

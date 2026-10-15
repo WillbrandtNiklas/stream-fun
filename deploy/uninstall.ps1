@@ -4,9 +4,9 @@ $ErrorActionPreference = 'SilentlyContinue'
 Unregister-ScheduledTask -TaskName 'SheesheoHak' -Confirm:$false
 Unregister-ScheduledTask -TaskName 'StreamFun' -Confirm:$false
 
-# laufenden Watchdog + Server + Tunnel beenden
+# laufenden Watchdog + Pruefer + Server + Tunnel beenden
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
-    Where-Object { $_.CommandLine -like '*agent.ps1*' } |
+    Where-Object { $_.CommandLine -like '*agent.ps1*' -or $_.CommandLine -like '*ensure.ps1*' } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" |
     Where-Object { $_.CommandLine -like '*remote-fun.jar*' } |
