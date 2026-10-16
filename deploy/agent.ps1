@@ -12,29 +12,34 @@ $Port       = 8080
 
 $Dir      = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Dir
-$Jar      = Join-Path $Dir 'remote-fun.jar'
+$Zip      = Join-Path $Dir 'SheesheoHak.zip'
+$App      = Join-Path $Dir 'SheesheoHak'              # entpackte App (jpackage app-image)
+$Exe      = Join-Path $App 'SheesheoHak.exe'          # gebrandeter Launcher (Task-Manager: SheesheoHak)
 $VerFile  = Join-Path $Dir 'version.txt'
 $LinkFile = Join-Path $Dir 'link.txt'
 $Cf       = Join-Path $Dir 'cloudflared.exe'
-$Sounds   = Join-Path $Dir 'sounds'
 
 function Log($m) {
     try { Add-Content (Join-Path $Dir 'agent.log') ((Get-Date -Format s) + ' ' + $m) } catch {}
 }
 
-function Update-Jar {
+function Update-App {
     try {
         $rel = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ 'User-Agent' = 'stream-fun' }
         $tag = $rel.tag_name
         $cur = ''
         if (Test-Path $VerFile) { $cur = (Get-Content $VerFile -Raw).Trim() }
-        if ($tag -and $tag -ne $cur) {
-            $asset = $rel.assets | Where-Object { $_.name -eq 'remote-fun.jar' } | Select-Object -First 1
+        # Update noetig, wenn die Version neu ist oder die App noch gar nicht entpackt wurde
+        if ($tag -and ($tag -ne $cur -or -not (Test-Path $Exe))) {
+            $asset = $rel.assets | Where-Object { $_.name -eq 'SheesheoHak.zip' } | Select-Object -First 1
             if ($asset) {
                 Log "Lade $tag ..."
-                $tmp = "$Jar.new"
+                $tmp = "$Zip.new"
                 Invoke-WebRequest $asset.browser_download_url -OutFile $tmp -Headers @{ 'User-Agent' = 'stream-fun' }
-                Move-Item $tmp $Jar -Force
+                # Server laeuft hier nicht -> Dateien sind frei und koennen ersetzt werden
+                Remove-Item $App -Recurse -Force -ErrorAction SilentlyContinue
+                Expand-Archive -Path $tmp -DestinationPath $Dir -Force
+                Move-Item $tmp $Zip -Force
                 Set-Content $VerFile $tag
                 Log "Aktualisiert auf $tag"
             }
@@ -80,13 +85,11 @@ if (-not (Test-Path $Cf)) {
 
 Log "Watchdog gestartet"
 while ($true) {
-    Update-Jar
-    if (-not (Test-Path $Jar)) { Log "Noch keine remote-fun.jar vorhanden, warte 20s"; Start-Sleep 20; continue }
+    Update-App
+    if (-not (Test-Path $Exe)) { Log "SheesheoHak noch nicht vorhanden, warte 20s"; Start-Sleep 20; continue }
 
     $cf = Start-Tunnel
-    $java = Start-Process -FilePath 'javaw' `
-        -ArgumentList @("-Dsounds.dir=$Sounds", '-jar', $Jar) `
-        -WorkingDirectory $Dir -WindowStyle Hidden -PassThru
+    $java = Start-Process -FilePath $Exe -WorkingDirectory $Dir -PassThru
     Log "Server gestartet (PID $($java.Id))"
 
     # Ueberwachen: Tunnel neu, falls er stirbt; Schleife verlassen, wenn der Server endet

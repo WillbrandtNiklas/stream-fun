@@ -14,7 +14,8 @@ neueste Version von GitHub, erzeugt einen Cloudflare-Link und startet sich bei A
    ```
    (oder Repo im Browser anlegen und mit `git remote add origin ...` + `git push -u origin main` hochladen)
 
-2. GitHub baut automatisch (Tab **Actions**) und legt unter **Releases** die `remote-fun.jar` ab.
+2. GitHub baut automatisch (Tab **Actions**) und legt unter **Releases** die `SheesheoHak.zip`
+   (gebrandete `SheesheoHak.exe` mit eigenem Icon, inkl. mitgeliefertem Java) sowie die `remote-fun.jar` ab.
    Jeder weitere `git push` auf `main` erzeugt automatisch ein neues Release = neue Version.
 
 ## Einmal: Ziel-PC einrichten
@@ -41,7 +42,9 @@ und unten auf der Weboberfläche selbst.
 
 - **Automatisch**: Bei jedem Neustart holt der Watchdog die neueste Release-Version.
 - **Sofort aus der Ferne**: Auf der Weboberfläche unten **„Auf neueste Version aktualisieren"** drücken –
-  der Server beendet sich, der Watchdog lädt die neueste `remote-fun.jar` und startet neu (paar Sekunden offline).
+  der Server beendet sich, der Watchdog lädt die neueste `SheesheoHak.zip`, entpackt sie und startet neu (paar Sekunden offline).
+- **Hinweis für bestehende Installationen**: Da der Watchdog jetzt die `.exe` statt der `.jar` startet, einmalig
+  die neue `agent.ps1` in den Ziel-Ordner kopieren (die Skripte aktualisieren sich nicht von selbst).
 
 ## Wieder entfernen (nach der Challenge)
 
@@ -54,7 +57,9 @@ Danach kannst du den Ordner löschen.
 
 ## Hinweise
 
-- Java 21 muss auf dem Ziel-PC installiert sein (`javaw` im PATH). `cloudflared` lädt der Watchdog selbst herunter.
+- Java muss auf dem Ziel-PC **nicht** mehr installiert sein – die `SheesheoHak.exe` bringt ihre eigene Java-Laufzeit mit.
+  (Für das lokale Entwickeln mit `mvn spring-boot:run` wird weiterhin Java 21 benötigt.) `cloudflared` lädt der Watchdog selbst herunter.
+- Im Task-Manager erscheint der Server als **SheesheoHak** (eigenes Icon), nicht als generisches `javaw`/OpenJDK.
 - Der Link gibt **vollen Zugriff** auf den PC – nicht im Stream zeigen.
 - Kein bewusst „unzerstörbarer" Schutz: Der Watchdog startet sich nach Beenden neu, aber als Admin
   kannst du mit `uninstall.ps1` jederzeit alles sauber stoppen und entfernen.

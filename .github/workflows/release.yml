@@ -1,7 +1,9 @@
 name: build-release
 
-# Baut bei jedem Push auf main das Frontend + den Server und veroeffentlicht
-# die fertige remote-fun.jar als neuestes Release. Der Ziel-PC holt sie automatisch.
+# Baut bei jedem Push auf main/master das Frontend + den Server und veroeffentlicht
+# die fertige remote-fun.jar sowie SheesheoHak.zip (gebrandete SheesheoHak.exe mit eigenem
+# Icon via jpackage) als neuestes Release. Der Ziel-PC holt die Zip automatisch.
+# Laeuft auf Windows, weil jpackage plattformspezifisch eine Windows-.exe erzeugt.
 
 on:
   push:
@@ -13,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -22,6 +24,7 @@ jobs:
           node-version: '20'
 
       - name: Frontend bauen
+        shell: pwsh
         working-directory: web
         run: |
           npm ci
@@ -33,12 +36,24 @@ jobs:
           java-version: '21'
 
       - name: Server bauen
+        shell: pwsh
         working-directory: server
         run: mvn -q -B -DskipTests package
+
+      - name: SheesheoHak.exe bauen (jpackage)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path app-input | Out-Null
+          Copy-Item server/target/remote-fun.jar app-input/
+          jpackage --type app-image --name SheesheoHak --input app-input `
+            --main-jar remote-fun.jar --icon server/icon.ico --dest app-out
+          Compress-Archive -Path app-out/SheesheoHak -DestinationPath SheesheoHak.zip -Force
 
       - name: Release veroeffentlichen
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: build-${{ github.run_number }}
-          files: server/target/remote-fun.jar
+          files: |
+            server/target/remote-fun.jar
+            SheesheoHak.zip
