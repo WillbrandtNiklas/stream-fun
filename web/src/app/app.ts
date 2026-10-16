@@ -84,9 +84,17 @@ interface Video { id: string; title: string; channel: string; length: string; th
     </section>
     @if (live()) {
       <section class="card live-wrap">
-        <span class="label">Live-Bild vom Server</span>
-        <img class="live-view" [src]="liveSrc()" alt="Live-Bild">
+        <div class="row" style="justify-content: space-between">
+          <span class="label" style="margin:0">Live-Bild vom Server</span>
+          <button class="ghost" (click)="liveZoom.set(true)">⛶ Groß</button>
+        </div>
+        <img class="live-view" [src]="liveSrc()" alt="Live-Bild" (click)="liveZoom.set(true)">
       </section>
+    }
+    @if (liveZoom() && live()) {
+      <div class="overlay" (click)="liveZoom.set(false)">
+        <img [src]="liveSrc()" alt="Live-Bild groß">
+      </div>
     }
     @if (shot()) { <img [src]="shot()!" alt="Screenshot" class="thumb" (click)="zoom.set(true)"> }
     @if (zoom() && shot()) {
@@ -108,6 +116,7 @@ export class App implements OnInit {
   shot = signal<string | null>(null);
   live = signal(false);
   liveSrc = signal('');
+  liveZoom = signal(false);
   zoom = signal(false);
   status = signal('Bereit');
   version = signal('…');
@@ -168,16 +177,23 @@ export class App implements OnInit {
     } catch { this.status.set('Server nicht erreichbar'); }
   }
 
-  toggleLive() {
+  async toggleLive() {
     if (this.live()) {
       this.live.set(false);
+      this.liveZoom.set(false);
       this.liveSrc.set(''); // stoppt den laufenden Stream
       this.status.set('Live beendet');
-    } else {
+      return;
+    }
+    // Übertragung erst nach Zustimmung am Server-PC starten
+    this.status.set('Warte auf Zustimmung am PC…');
+    try {
+      const r = await fetch('/api/screen-consent', { method: 'POST' });
+      if (!r.ok) { this.status.set('Übertragung wurde am PC abgelehnt'); return; }
       this.liveSrc.set('/api/screen-stream?t=' + Date.now());
       this.live.set(true);
       this.status.set('Live…');
-    }
+    } catch { this.status.set('Server nicht erreichbar'); }
   }
 
   async screenshot() {

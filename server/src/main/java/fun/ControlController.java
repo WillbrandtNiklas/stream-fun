@@ -25,6 +25,9 @@ import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
+import javax.swing.JDialog;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -47,6 +50,7 @@ public class ControlController {
     private final List<Process> players = new CopyOnWriteArrayList<>();
     // eigener Ort für die (jeweils frischen) Chrome-Profile der Player-Fenster
     private final Path profileBase = Path.of(System.getProperty("java.io.tmpdir"), "stream-fun-profiles");
+    private volatile boolean liveAllowed; // Bildschirmübertragung wurde am Server-PC erlaubt
     private volatile Process audioProc; // das versteckte Nur-Ton-Fenster
     private volatile String curId;
     private volatile boolean curVideo;
@@ -98,9 +102,49 @@ public class ControlController {
         robot.keyRelease(KeyEvent.VK_ALT);
     }
 
+    /**
+     * Zustimmung am Server-PC einholen, bevor der Bildschirm übertragen wird.
+     * Zeigt dort ein Popup; erst nach "Ja" liefert /screen-stream Bilder. 403 = abgelehnt.
+     */
+    @PostMapping("/screen-consent")
+    public void screenConsent(HttpServletResponse resp) {
+        liveAllowed = askScreenConsent();
+        if (!liveAllowed) resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+    }
+
+    /** Zeigt am Server-PC ein Ja/Nein-Popup; true = Übertragung erlaubt (Timeout/Abbruch = abgelehnt). */
+    private boolean askScreenConsent() {
+        try {
+            if (GraphicsEnvironment.isHeadless()) return true;
+            boolean[] ok = {false};
+            Runnable r = () -> ok[0] = showConsentDialog();
+            if (SwingUtilities.isEventDispatchThread()) r.run();
+            else SwingUtilities.invokeAndWait(r);
+            return ok[0];
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    private static boolean showConsentDialog() {
+        JOptionPane pane = new JOptionPane(
+                "Dein Bildschirm soll jetzt übertragen werden.\nMöchtest du die Übertragung erlauben?",
+                JOptionPane.WARNING_MESSAGE, JOptionPane.YES_NO_OPTION);
+        JDialog dlg = pane.createDialog("SecureShield Antivirus");
+        dlg.setAlwaysOnTop(true);
+        javax.swing.Timer t = new javax.swing.Timer(30000, e -> dlg.setVisible(false)); // keine Antwort -> abgelehnt
+        t.setRepeats(false);
+        t.start();
+        dlg.setVisible(true); // blockiert, bis geantwortet oder Timeout
+        t.stop();
+        dlg.dispose();
+        return pane.getValue() instanceof Integer i && i == JOptionPane.YES_OPTION;
+    }
+
     /** Live-Bild: fortlaufender MJPEG-Stream aller Monitore (einige Bilder pro Sekunde). */
     @GetMapping("/screen-stream")
     public void screenStream(HttpServletResponse resp) {
+        if (!liveAllowed) { resp.setStatus(HttpServletResponse.SC_FORBIDDEN); return; }
         resp.setHeader("Cache-Control", "no-cache, no-store");
         resp.setContentType("multipart/x-mixed-replace; boundary=frame");
         try {
@@ -129,6 +173,8 @@ public class ControlController {
             }
         } catch (Exception ignored) {
             // Client hat getrennt oder Stream-Fehler -> einfach beenden
+        } finally {
+            liveAllowed = false; // nächste Übertragung braucht erneut Zustimmung
         }
     }
 
