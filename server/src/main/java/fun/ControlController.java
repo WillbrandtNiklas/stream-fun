@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api")
 public class ControlController {
     private final Robot robot;
+    private final FlyOverlay flies;
     private final ScheduledExecutorService ex = Executors.newScheduledThreadPool(2);
     private ScheduledFuture<?> freeze;
 
@@ -50,8 +51,9 @@ public class ControlController {
     private volatile String curId;
     private volatile boolean curVideo;
 
-    public ControlController() throws AWTException {
+    public ControlController(FlyOverlay flies) throws AWTException {
         this.robot = new Robot();
+        this.flies = flies;
         // beim Beenden (z. B. Update) offene Player-Fenster mit schließen
         Runtime.getRuntime().addShutdownHook(new Thread(this::stopPlayerInternal));
         // beim Start alte, evtl. beschädigte Chrome-Profile vom letzten Lauf entfernen (verhindert "Profilfehler")
@@ -158,6 +160,18 @@ public class ControlController {
     @PostMapping("/mouse/unfreeze")
     public synchronized void unfreeze() {
         if (freeze != null) { freeze.cancel(false); freeze = null; }
+    }
+
+    /** Spielerei: spawnt eine Cartoon-Fliege im Bildschirm-Overlay (max. FlyOverlay.MAX_OBJECTS Objekte). */
+    @PostMapping("/flies/spawn")
+    public Map<String, Integer> spawnFly() {
+        return flies.spawn();
+    }
+
+    /** Entfernt sofort alle Fliegen und Eier. */
+    @PostMapping("/flies/kill-all")
+    public Map<String, Integer> killAllFlies() {
+        return flies.killAll();
     }
 
     /** Aktuell installierte Version (vom Updater in version.txt geschrieben). */

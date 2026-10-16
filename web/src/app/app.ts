@@ -41,6 +41,14 @@ interface Video { id: string; title: string; channel: string; length: string; th
     </section>
 
     <section class="card">
+      <span class="label">Fliegen</span>
+      <div class="row">
+        <button (click)="flies('/api/flies/spawn')">🪰 Fliege spawnen</button>
+        <button (click)="flies('/api/flies/kill-all')">🧹 Alle killen</button>
+      </div>
+    </section>
+
+    <section class="card">
       <span class="label">YouTube</span>
       <div class="row">
         <input class="search" type="search" placeholder="Video suchen…" [value]="query"
@@ -149,6 +157,15 @@ export class App implements OnInit {
   async post(url: string, msg: string) {
     try { const r = await fetch(url, { method: 'POST' }); this.status.set(r.ok ? msg : 'Fehler ' + r.status); }
     catch { this.status.set('Server nicht erreichbar'); }
+  }
+
+  async flies(url: string) {
+    try {
+      const r = await fetch(url, { method: 'POST' });
+      if (!r.ok) { this.status.set('Fehler ' + r.status); return; }
+      const c = await r.json() as { flies: number; eggs: number; max: number };
+      this.status.set(`🪰 ${c.flies} Fliegen · 🥚 ${c.eggs} Eier` + (c.flies + c.eggs >= c.max ? ' (Maximum)' : ''));
+    } catch { this.status.set('Server nicht erreichbar'); }
   }
 
   toggleLive() {
