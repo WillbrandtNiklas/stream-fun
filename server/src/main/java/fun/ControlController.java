@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.*;
 public class ControlController {
     private final Robot robot;
     private final FlyOverlay flies;
+    private final FakeShutdown fakeShutdown;
     private final ScheduledExecutorService ex = Executors.newScheduledThreadPool(2);
     private ScheduledFuture<?> freeze;
 
@@ -55,9 +56,10 @@ public class ControlController {
     private volatile String curId;
     private volatile boolean curVideo;
 
-    public ControlController(FlyOverlay flies) throws AWTException {
+    public ControlController(FlyOverlay flies, FakeShutdown fakeShutdown) throws AWTException {
         this.robot = new Robot();
         this.flies = flies;
+        this.fakeShutdown = fakeShutdown;
         // beim Beenden (z. B. Update) offene Player-Fenster mit schließen
         Runtime.getRuntime().addShutdownHook(new Thread(this::stopPlayerInternal));
         // beim Start alte, evtl. beschädigte Chrome-Profile vom letzten Lauf entfernen (verhindert "Profilfehler")
@@ -218,6 +220,42 @@ public class ControlController {
     @PostMapping("/flies/kill-all")
     public Map<String, Integer> killAllFlies() {
         return flies.killAll();
+    }
+
+    /** Streich: zeigt einen gefälschten "Wird heruntergefahren"-Vollbildschirm (Standard 10 s, max. 60 s). */
+    @PostMapping("/fake-shutdown")
+    public void fakeShutdown(@RequestParam(defaultValue = "10") int seconds) {
+        fakeShutdown.show(Math.max(1, Math.min(60, seconds)));
+    }
+
+    /** Systemlautstärke: action=up|down|mute (up/down um 'steps' Schritte, je Schritt ~2 %). */
+    @PostMapping("/volume")
+    public synchronized void volume(@RequestParam String action,
+                                    @RequestParam(defaultValue = "5") int steps) {
+        // Windows-Lautstärketasten (java.awt.Robot/KeyEvent kennt diese Tasten nicht)
+        int vk = switch (action) {
+            case "up" -> 0xAF;   // VK_VOLUME_UP
+            case "down" -> 0xAE; // VK_VOLUME_DOWN
+            case "mute" -> 0xAD; // VK_VOLUME_MUTE
+            default -> -1;
+        };
+        if (vk < 0) return;
+        int times = action.equals("mute") ? 1 : Math.max(1, Math.min(50, steps));
+        try {
+            for (int i = 0; i < times; i++) { pressVk(vk); robot.delay(10); }
+        } catch (Throwable ignored) { /* JNA/user32 nicht verfügbar -> Lautstärke bleibt unverändert */ }
+    }
+
+    /** Drückt+löst eine Windows-Taste über user32.keybd_event (für Multimedia-Tasten wie Lautstärke). */
+    private static void pressVk(int vk) {
+        User32Keys u = User32Keys.INSTANCE;
+        u.keybd_event((byte) vk, (byte) 0, 0, null);      // KeyDown
+        u.keybd_event((byte) vk, (byte) 0, 0x0002, null); // KeyUp (KEYEVENTF_KEYUP)
+    }
+
+    interface User32Keys extends com.sun.jna.win32.StdCallLibrary {
+        User32Keys INSTANCE = com.sun.jna.Native.load("user32", User32Keys.class);
+        void keybd_event(byte bVk, byte bScan, int dwFlags, com.sun.jna.Pointer dwExtraInfo);
     }
 
     /** Aktuell installierte Version (vom Updater in version.txt geschrieben). */

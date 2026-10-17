@@ -49,6 +49,18 @@ interface Video { id: string; title: string; channel: string; length: string; th
     </section>
 
     <section class="card">
+      <span class="label">Streiche & Lautstärke</span>
+      <div class="row">
+        <button (click)="post('/api/fake-shutdown', 'Fake-Herunterfahren läuft (10 s)')">💀 Fake-Herunterfahren</button>
+      </div>
+      <div class="row">
+        <button (click)="post('/api/volume?action=down', 'Leiser')">🔉 Leiser</button>
+        <button (click)="post('/api/volume?action=up', 'Lauter')">🔊 Lauter</button>
+        <button (click)="post('/api/volume?action=mute', 'Stumm umgeschaltet')">🔇 Stumm</button>
+      </div>
+    </section>
+
+    <section class="card">
       <span class="label">YouTube</span>
       <div class="row">
         <input class="search" type="search" placeholder="Video suchen…" [value]="query"
